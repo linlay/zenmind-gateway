@@ -1,0 +1,10 @@
+.DS_Store
+
+# Local environment overrides
+.env
+.env.local
+
+# Editor and OS temp files
+*.swp
+*.swo
+*~
