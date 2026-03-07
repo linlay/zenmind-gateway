@@ -17,14 +17,15 @@
 - 网关容器：`zenmind-gateway`（监听容器 80，映射宿主机 `11945`）。
 - 核心转发模式：
   - 容器网络转发（默认）：auth、agent-platform、mcp-*。
-  - 宿主机转发（例外）：`/term`、`/appterm` -> `host.docker.internal:11947`。
+  - term 路由按模式切换：`TERM_BACKEND_MODE=host|container`。
 - 各业务服务保留独立宿主机端口用于直连验证和故障排查，不影响网关入口。
 
 ## 4. 目录结构
 
 - `docker-compose.yml`：网关容器定义与网络接入
 - `nginx.conf`：路由与转发规则（系统行为核心）
-- `.env.example`：网关端口契约（`GATEWAY_PORT`）
+- `nginx-backends/`：`/api/ap/`、`/appterm`、`/term` 上游模式片段（container/host）
+- `.env.example`：网关环境变量契约（`GATEWAY_PORT`、`AP_BACKEND_MODE`、`TERM_BACKEND_MODE`）
 - `README.md`：操作手册（启动、部署、运维）
 - `CLAUDE.md`：系统事实文档（本文件）
 
@@ -33,18 +34,19 @@
 本项目核心数据是“路由映射表”：
 
 - `path`: 对外访问路径（如 `/api/ap/`）
-- `upstream`: 上游服务地址（如 `http://agent-platform:8080`）
+- `upstream`: 上游服务地址（如 `http://agent-platform-runner:8080`）
 - `mode`: `docker-network` 或 `host-forward`
 
 当前关键映射：
 
 - `/admin/api`、`/api/auth`、`/api/app`、`/oauth2`、`/openid` -> `app-server-backend:8080`
 - `/admin` -> `app-server-frontend:80`
-- `/api/ap/` -> `agent-platform:8080`
+- `/api/ap/` -> `AP_BACKEND_MODE=container` 时 `agent-platform-runner:8080`；`AP_BACKEND_MODE=host` 时 `host.docker.internal:11949`
 - `/api/mcp/mock` -> `mcp-server-mock:8080/mcp`
 - `/api/mcp/email` -> `mcp-server-email:8080/mcp`
 - `/api/mcp/bash` -> `mcp-server-bash:8080/mcp`
-- `/term`、`/appterm` -> `host.docker.internal:11947`
+- `/appterm` -> `TERM_BACKEND_MODE=host` 时 `host.docker.internal:11947`；`TERM_BACKEND_MODE=container` 时 `term-webclient-frontend:80`
+- `/term` -> `TERM_BACKEND_MODE=host` 时 `host.docker.internal:11947`；`TERM_BACKEND_MODE=container` 时 `term-webclient-backend:8080`
 
 ## 6. API 定义
 
@@ -70,6 +72,8 @@
 - 网关不维护业务密钥，密钥在各子项目自身配置中管理。
 - 变更路由时遵循“路径稳定优先、上游可替换”原则，减少客户端改动。
 - 新服务接入优先走 `zenmind-network` 容器别名，再补文档中的端口矩阵。
+- `AP_BACKEND_MODE` 仅接受 `container` 或 `host`，默认 `container`。
+- `TERM_BACKEND_MODE` 仅接受 `host` 或 `container`，默认 `host`。
 
 ## 8. 开发流程
 
@@ -81,7 +85,7 @@
 
 ## 9. 已知约束与注意事项
 
-- `/term`、`/appterm` 目前依赖宿主机 `11947`，不是容器网络转发。
-- 若上游容器未接入 `zenmind-network`，对应网关路径将返回 `502`（不回退宿主机）。
+- 当 `AP_BACKEND_MODE=container` 且上游容器未接入 `zenmind-network` 时，`/api/ap/` 将返回 `502`。
+- 当 `TERM_BACKEND_MODE=container` 且 term-webclient 容器别名不可达时，`/appterm` 或 `/term` 将返回 `502`。
 - 网关容器仅作为本地开发/联调入口，不承载生产级负载均衡策略。
 - `zenmind-network` 必须预先存在（`docker network create zenmind-network`）。

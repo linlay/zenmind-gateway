@@ -61,12 +61,30 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 ## 3. 配置说明
 
 - 网关配置文件：
-  - 端口契约：`.env.example`（`GATEWAY_PORT=11945`）
+  - 环境变量契约：`.env.example`（`GATEWAY_PORT=11945`、`AP_BACKEND_MODE=container`、`TERM_BACKEND_MODE=host`）
   - 路由规则：`nginx.conf`
 - 配置优先级：`.env` > `.env.example`
 - 网关不保存业务密钥；业务密钥在各子项目独立维护
 - `zenmind-network` 是统一容器网络契约，除 term 外所有网关转发依赖该网络
 - 该网络由本项目首次 `docker compose up -d` 自动创建（固定名称：`zenmind-network`）
+
+### `/api/ap/` 上游切换
+
+- `AP_BACKEND_MODE=container`（默认）：
+  - `/api/ap/` -> `agent-platform-runner:8080`
+- `AP_BACKEND_MODE=host`：
+  - `/api/ap/` -> `host.docker.internal:11949`
+- 修改 `.env` 后执行 `docker compose up -d` 使配置生效
+
+### `/appterm`、`/term` 上游切换
+
+- `TERM_BACKEND_MODE=host`（默认）：
+  - `/appterm` -> `host.docker.internal:11947`
+  - `/term` -> `host.docker.internal:11947`
+- `TERM_BACKEND_MODE=container`：
+  - `/appterm` -> `term-webclient-frontend:80`
+  - `/term` -> `term-webclient-backend:8080`
+- 修改 `.env` 后执行 `docker compose up -d` 使配置生效
 
 ### 端口矩阵（宿主机）
 
@@ -84,11 +102,12 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 
 - `/admin/api`、`/api/auth`、`/api/app`、`/oauth2`、`/openid` -> `app-server-backend:8080`
 - `/admin` -> `app-server-frontend:80`
-- `/api/ap/` -> `agent-platform:8080`
+- `/api/ap/` -> `AP_BACKEND_MODE=container` 时 `agent-platform-runner:8080`；`AP_BACKEND_MODE=host` 时 `host.docker.internal:11949`
 - `/api/mcp/mock` -> `mcp-server-mock:8080/mcp`
 - `/api/mcp/email` -> `mcp-server-email:8080/mcp`
 - `/api/mcp/bash` -> `mcp-server-bash:8080/mcp`
-- `/term`、`/appterm` -> `host.docker.internal:11947`
+- `/appterm` -> `TERM_BACKEND_MODE=host` 时 `host.docker.internal:11947`；`TERM_BACKEND_MODE=container` 时 `term-webclient-frontend:80`
+- `/term` -> `TERM_BACKEND_MODE=host` 时 `host.docker.internal:11947`；`TERM_BACKEND_MODE=container` 时 `term-webclient-backend:8080`
 
 ## 4. 部署
 
