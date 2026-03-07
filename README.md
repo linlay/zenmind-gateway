@@ -22,11 +22,11 @@
 
 ```bash
 cd ~/Project/zenmind-gateway
-cp .env.example .env
-docker network create zenmind-network || true
+./start.sh
 ```
 
-按顺序启动上游服务（已保留各自宿主机端口）：
+首次启动本项目会自动创建 `zenmind-network`。  
+随后按顺序启动上游服务（已保留各自宿主机端口）：
 
 ```bash
 cd ~/Project/zenmind-app-server && docker compose up -d --build
@@ -47,7 +47,7 @@ cd ~/Project/term-webclient
 
 ```bash
 cd ~/Project/zenmind-gateway
-docker compose up -d
+./start.sh
 ```
 
 ### 路由验证
@@ -66,6 +66,7 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 - 配置优先级：`.env` > `.env.example`
 - 网关不保存业务密钥；业务密钥在各子项目独立维护
 - `zenmind-network` 是统一容器网络契约，除 term 外所有网关转发依赖该网络
+- 该网络由本项目首次 `docker compose up -d` 自动创建（固定名称：`zenmind-network`）
 
 ### 端口矩阵（宿主机）
 
@@ -95,7 +96,7 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 
 ```bash
 cd ~/Project/zenmind-gateway
-docker compose up -d --build
+./start.sh --build
 ```
 
 ### 重启网关（配置变更后）
