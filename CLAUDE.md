@@ -85,7 +85,7 @@
 - `TERM_BACKEND_MODE` 仅接受 `host` 或 `container`，默认 `host`。
 - `PAN_BACKEND_MODE` 仅接受 `host` 或 `container`，默认 `host`。
 - `/ma/*` 固定代理到宿主机 `11955`，不提供模式切换。
-- `/ma/*` 只做入口级前缀代理，不处理响应体中的绝对路径兼容。
+- `/ma/*` 通过通用 `sub_filter` 和 `proxy_redirect` 兼容外部反向代理前缀，把响应中的根绝对路径统一改写为 `/ma/*`，不依赖业务名枚举。
 - `pan` 通过 gateway 的 rewrite + `sub_filter` 兼容层将根级 `"/api/"`、`"/assets/"` 改写为 `/pan/*` 或 `/apppan/*` 前缀，不暴露 pan 根级接口。
 
 ## 8. 开发流程
