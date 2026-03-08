@@ -9,6 +9,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx-backends/ap-backend.${AP_BACKEND_MODE:-container}.conf:/etc/nginx/conf.d/ap-backend.conf:ro
       - ./nginx-backends/term-backends.${TERM_BACKEND_MODE:-host}.conf:/etc/nginx/conf.d/term-backends.conf:ro
+      - ./nginx-backends/pan-backends.${PAN_BACKEND_MODE:-host}.conf:/etc/nginx/conf.d/pan-backends.conf:ro
     networks:
       - zenmind-network
 
