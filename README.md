@@ -87,10 +87,8 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
   - `/ma/note/` -> `http://host.docker.internal:11955/note/`
   - `/ma/note/api/ping` -> `http://host.docker.internal:11955/note/api/ping`
 - `GET /ma` 会 `301` 到 `/ma/`
-- 会通用改写上游返回体中的根绝对路径引用，把 `"/..."`、`'/...'`、`url(/...)` 统一前缀成 `/ma/...`
-- 会保留协议相对地址 `//...`，避免被错误改成 `/ma//...`
 - 会改写上游返回的相对根 `Location` 响应头到 `/ma/*`
-- 会附带 `X-Forwarded-Prefix: /ma` 供支持此前缀约定的上游使用
+- 不改写 HTML、JS、CSS、JSON 响应体
 - 不引入 `.env` 模式切换，`11955` 为固定宿主机上游
 
 ### `/api/ap/` 上游切换
@@ -148,6 +146,7 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 - `/appterm` -> `TERM_BACKEND_MODE=host` 时 `host.docker.internal:11947`；`TERM_BACKEND_MODE=container` 时 `term-webclient-frontend:80`
 - `/term` -> `TERM_BACKEND_MODE=host` 时 `host.docker.internal:11947`；`TERM_BACKEND_MODE=container` 时 `term-webclient-frontend:80`
 - `/ma/*` -> `host.docker.internal:11955`，转发前去掉 `/ma` 前缀
+- `/ma/*` 的 `Location: /foo` 响应头会被改写为 `Location: /ma/foo`
 - `/pan` -> `PAN_BACKEND_MODE=host` 时 `host.docker.internal:11946`；`PAN_BACKEND_MODE=container` 时 `pan-webclient:8080`
 - `/pan/api/*`、`/pan/assets/*` -> rewrite 后转发到 pan 上游 `/api/*`、`/assets/*`
 - `/apppan` -> `PAN_BACKEND_MODE=host` 时 `host.docker.internal:11946`；`PAN_BACKEND_MODE=container` 时 `pan-webclient:8080`
