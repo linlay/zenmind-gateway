@@ -3,7 +3,7 @@
 ## 1. 项目简介
 
 `zenmind-gateway` 是本地统一入口网关，固定入口为 `127.0.0.1:11945`。  
-除 `/term`、`/appterm`、`/pan`、`/apppan` 外，其他业务路径优先走 Docker 网络 `zenmind-network` 转发到容器；各服务独立宿主机端口继续保留。
+除 `/term`、`/appterm`、`/pan`、`/apppan`、`/ma` 外，其他业务路径优先走 Docker 网络 `zenmind-network` 转发到容器；各服务独立宿主机端口继续保留。
 
 ## 2. 快速开始
 
@@ -63,6 +63,8 @@ cd ~/Project/zenmind-gateway
 
 ```bash
 curl -i http://127.0.0.1:11945/healthz
+curl -i http://127.0.0.1:11945/ma/
+curl -i http://127.0.0.1:11945/ma/note/api/ping
 curl -i http://127.0.0.1:11945/openid/.well-known/openid-configuration
 curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":"1","method":"tools/list"}'
 ```
@@ -76,6 +78,16 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 - 网关不保存业务密钥；业务密钥在各子项目独立维护
 - `zenmind-network` 是统一容器网络契约，除 term 外所有网关转发依赖该网络
 - 该网络由本项目首次 `docker compose up -d` 自动创建（固定名称：`zenmind-network`）
+
+### `/ma` 固定宿主机代理
+
+- `/ma/*` 固定转发到 `host.docker.internal:11955`
+- 转发前会去掉 `/ma` 前缀：
+  - `/ma/` -> `http://host.docker.internal:11955/`
+  - `/ma/note/` -> `http://host.docker.internal:11955/note/`
+  - `/ma/note/api/ping` -> `http://host.docker.internal:11955/note/api/ping`
+- `GET /ma` 会 `301` 到 `/ma/`
+- 不引入 `.env` 模式切换，`11955` 为固定宿主机上游
 
 ### `/api/ap/` 上游切换
 
@@ -119,6 +131,7 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 - `11947`：term-webclient frontend（网关 `/term`、`/appterm` 转发目标）
 - `11937`：term-webclient backend（由 term-webclient 自身使用）
 - `11946`：pan-webclient backend（网关 `/pan`、`/apppan` 转发目标）
+- `11955`：MA 宿主机服务（网关 `/ma/*` 转发目标）
 
 ### 网关路由矩阵
 
@@ -130,6 +143,7 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 - `/api/mcp/bash` -> `mcp-server-bash:8080/mcp`
 - `/appterm` -> `TERM_BACKEND_MODE=host` 时 `host.docker.internal:11947`；`TERM_BACKEND_MODE=container` 时 `term-webclient-frontend:80`
 - `/term` -> `TERM_BACKEND_MODE=host` 时 `host.docker.internal:11947`；`TERM_BACKEND_MODE=container` 时 `term-webclient-frontend:80`
+- `/ma/*` -> `host.docker.internal:11955`，转发前去掉 `/ma` 前缀
 - `/pan` -> `PAN_BACKEND_MODE=host` 时 `host.docker.internal:11946`；`PAN_BACKEND_MODE=container` 时 `pan-webclient:8080`
 - `/pan/api/*`、`/pan/assets/*` -> rewrite 后转发到 pan 上游 `/api/*`、`/assets/*`
 - `/apppan` -> `PAN_BACKEND_MODE=host` 时 `host.docker.internal:11946`；`PAN_BACKEND_MODE=container` 时 `pan-webclient:8080`
@@ -168,6 +182,7 @@ docker compose logs -f gateway
   - 检查目标容器是否接入 `zenmind-network`
   - 检查网关中服务别名是否与 compose 别名一致
   - 若 `PAN_BACKEND_MODE=host`，检查 pan-webclient 是否已监听 `127.0.0.1:11946`
+  - 若访问 `/ma/*`，检查宿主机服务是否已监听 `127.0.0.1:11955`
 - 端口占用
   - `lsof -nP -iTCP:11945 -sTCP:LISTEN`
 - 规则未生效
@@ -179,4 +194,5 @@ docker compose logs -f gateway
 docker network inspect zenmind-network
 docker ps --format 'table {{.Names}}\t{{.Ports}}'
 curl -i http://127.0.0.1:11945/healthz
+curl -i http://127.0.0.1:11945/ma/
 ```
