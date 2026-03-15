@@ -12,6 +12,7 @@
 - Docker Desktop（含 Docker Compose）
 - 本机存在以下项目目录：
   - `~/Project/agent-platform-runner`
+  - `~/Project/zenmind-voice-server`
   - `~/Project/zenmind-app-server`
   - `~/Project/mcp-server-mock`
   - `~/Project/mcp-server-email`
@@ -32,6 +33,7 @@ cd ~/Project/zenmind-gateway
 ```bash
 cd ~/Project/zenmind-app-server && docker compose up -d --build
 cd ~/Project/agent-platform-runner && docker compose up -d --build
+cd ~/Project/zenmind-voice-server && docker compose up -d --build
 cd ~/Project/mcp-server-mock && docker compose up -d --build
 cd ~/Project/mcp-server-email && docker compose up -d --build
 cd ~/Project/mcp-server-bash && docker compose up -d --build
@@ -94,9 +96,9 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 ### `/api/ap/` 上游切换
 
 - `AP_BACKEND_MODE=container`（默认）：
-  - `/api/ap/` -> `agent-platform-runner:8080`
+  - 外部 `/api/ap/*` -> 上游 `agent-platform-runner:8080/api/*`
 - `AP_BACKEND_MODE=host`：
-  - `/api/ap/` -> `host.docker.internal:11949`
+  - 外部 `/api/ap/*` -> 上游 `host.docker.internal:11949/api/*`
 - 修改 `.env` 后执行 `docker compose up -d` 使配置生效
 
 ### `/appterm`、`/term` 上游切换
@@ -127,6 +129,7 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 - `11952`：zenmind-app-server backend
 - `11950`：zenmind-app-server frontend
 - `11949`：agent-platform-runner
+- `11953`：zenmind-voice-server
 - `11969`：mcp-server-mock
 - `11967`：mcp-server-email
 - `11963`：mcp-server-bash
@@ -139,7 +142,8 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 
 - `/admin/api`、`/api/auth`、`/api/app`、`/oauth2`、`/openid` -> `app-server-backend:8080`
 - `/admin` -> `app-server-frontend:80`
-- `/api/ap/` -> `AP_BACKEND_MODE=container` 时 `agent-platform-runner:8080`；`AP_BACKEND_MODE=host` 时 `host.docker.internal:11949`
+- `/api/ap/*` -> `AP_BACKEND_MODE=container` 时转发到 `agent-platform-runner:8080/api/*`；`AP_BACKEND_MODE=host` 时转发到 `host.docker.internal:11949/api/*`
+- `/api/voice/*` -> `voice-server:11953`
 - `/api/mcp/mock` -> `mcp-server-mock:8080/mcp`
 - `/api/mcp/email` -> `mcp-server-email:8080/mcp`
 - `/api/mcp/bash` -> `mcp-server-bash:8080/mcp`
@@ -184,6 +188,7 @@ docker compose logs -f gateway
   - 检查目标服务容器是否启动
   - 检查目标容器是否接入 `zenmind-network`
   - 检查网关中服务别名是否与 compose 别名一致
+  - 若访问 `/api/voice/*`，检查 `voice-server` 是否已加入 `zenmind-network`
   - 若 `PAN_BACKEND_MODE=host`，检查 pan-webclient 是否已监听 `127.0.0.1:11946`
   - 若访问 `/ma/*`，检查宿主机服务是否已监听 `127.0.0.1:11955`
 - 端口占用
