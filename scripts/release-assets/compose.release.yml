@@ -1,0 +1,22 @@
+name: zenmind-gateway
+
+services:
+  gateway:
+    container_name: zenmind-gateway
+    image: zenmind-gateway:${GATEWAY_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      AP_BACKEND_MODE: ${AP_BACKEND_MODE:-container}
+      TERM_BACKEND_MODE: ${TERM_BACKEND_MODE:-host}
+      PAN_BACKEND_MODE: ${PAN_BACKEND_MODE:-host}
+    ports:
+      - "127.0.0.1:${GATEWAY_PORT:-11945}:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - zenmind-network
+
+networks:
+  zenmind-network:
+    external: true
+    name: zenmind-network

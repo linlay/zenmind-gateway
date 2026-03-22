@@ -3,6 +3,8 @@
 # Local environment overrides
 .env
 .env.local
+dist/
+.codex-temp/
 
 # Editor and OS temp files
 *.swp

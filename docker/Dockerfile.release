@@ -1,0 +1,10 @@
+FROM nginx:1.27-alpine
+
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx-backends /opt/zenmind/nginx-backends
+COPY docker/entrypoint-release.sh /usr/local/bin/zenmind-gateway-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/zenmind-gateway-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/zenmind-gateway-entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]

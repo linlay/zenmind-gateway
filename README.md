@@ -2,63 +2,41 @@
 
 ## 1. 项目简介
 
-`zenmind-gateway` 是本地统一入口网关，固定入口为 `127.0.0.1:11945`。  
-除 `/term`、`/appterm`、`/pan`、`/apppan`、`/ma` 外，其他业务路径优先走 Docker 网络 `zenmind-network` 转发到容器；各服务独立宿主机端口继续保留。
+`zenmind-gateway` 是本地统一入口网关，固定入口为 `127.0.0.1:11945`。
+
+- 除 `/term`、`/appterm`、`/pan`、`/apppan`、`/ma` 外，其他业务路径优先走 Docker 网络 `zenmind-network` 转发到容器
+- term、pan 支持 `host|container` 模式切换
+- `/ma/*` 固定转发到 `host.docker.internal:11955`
 
 ## 2. 快速开始
 
 ### 前置要求
 
-- Docker Desktop（含 Docker Compose）
-- 本机存在以下项目目录：
-  - `~/Project/agent-platform-runner`
-  - `~/Project/zenmind-voice-server`
-  - `~/Project/zenmind-app-server`
-  - `~/Project/mcp-server-mock`
-  - `~/Project/mcp-server-email`
-  - `~/Project/mcp-server-bash`
-  - `~/Project/term-webclient`
-  - `~/Project/pan-webclient`
+- Docker Desktop 或可用的 Docker Engine + Docker Compose v2
+- 上游服务已按各自项目方式启动
 
 ### 本地启动
 
 ```bash
 cd ~/Project/zenmind-gateway
+cp .env.example .env
 ./start.sh
 ```
 
-首次启动本项目会自动创建 `zenmind-network`。  
-随后按顺序启动上游服务（已保留各自宿主机端口）：
+`./start.sh` 会自动确保 `zenmind-network` 存在，然后执行 `docker compose up -d`。
 
-```bash
-cd ~/Project/zenmind-app-server && docker compose up -d --build
-cd ~/Project/agent-platform-runner && docker compose up -d --build
-cd ~/Project/zenmind-voice-server && docker compose up -d --build
-cd ~/Project/mcp-server-mock && docker compose up -d --build
-cd ~/Project/mcp-server-email && docker compose up -d --build
-cd ~/Project/mcp-server-bash && docker compose up -d --build
-```
-
-启动 term-webclient（保持其原有启动方式）：
-
-```bash
-cd ~/Project/term-webclient
-./release-scripts/mac/start.sh
-```
-
-如需启用 pan host 模式，请先启动 pan-webclient（宿主机 `11946`）：
-
-```bash
-cd ~/Project/pan-webclient
-make web-build
-APP_PORT=11946 PAN_STATIC_DIR=apps/web/dist make api-run
-```
-
-最后启动网关：
+如需显式重建：
 
 ```bash
 cd ~/Project/zenmind-gateway
-./start.sh
+./start.sh --build
+```
+
+停止网关：
+
+```bash
+cd ~/Project/zenmind-gateway
+./stop.sh
 ```
 
 ### 路由验证
@@ -73,72 +51,32 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 
 ## 3. 配置说明
 
-- 网关配置文件：
-  - 环境变量契约：`.env.example`（`GATEWAY_PORT=11945`、`AP_BACKEND_MODE=container`、`TERM_BACKEND_MODE=host`、`PAN_BACKEND_MODE=host`）
-  - 路由规则：`nginx.conf`
-- 配置优先级：`.env` > `.env.example`
-- 网关不保存业务密钥；业务密钥在各子项目独立维护
-- `zenmind-network` 是统一容器网络契约，除 term 外所有网关转发依赖该网络
-- 该网络由本项目首次 `docker compose up -d` 自动创建（固定名称：`zenmind-network`）
+配置文件：
 
-### `/ma` 固定宿主机代理
+- 环境变量模板：`.env.example`
+- 开发态编排：`docker-compose.yml`
+- 路由规则：`nginx.conf`
+- 模式片段：`nginx-backends/`
 
-- `/ma/*` 固定转发到 `host.docker.internal:11955`
-- 转发前会去掉 `/ma` 前缀：
-  - `/ma/` -> `http://host.docker.internal:11955/`
-  - `/ma/note/` -> `http://host.docker.internal:11955/note/`
-  - `/ma/note/api/ping` -> `http://host.docker.internal:11955/note/api/ping`
-- `GET /ma` 会 `301` 到 `/ma/`
-- 会改写上游返回的相对根 `Location` 响应头到 `/ma/*`
-- 不改写 HTML、JS、CSS、JSON 响应体
-- 不引入 `.env` 模式切换，`11955` 为固定宿主机上游
+配置优先级：
 
-### `/api/ap/` 上游切换
+- `.env` 覆盖 `.env.example`
 
-- `AP_BACKEND_MODE=container`（默认）：
-  - 外部 `/api/ap/*` -> 上游 `agent-platform-runner:8080/api/*`
-- `AP_BACKEND_MODE=host`：
-  - 外部 `/api/ap/*` -> 上游 `host.docker.internal:11949/api/*`
-- 修改 `.env` 后执行 `docker compose up -d` 使配置生效
+主要环境变量：
 
-### `/appterm`、`/term` 上游切换
+- `GATEWAY_VERSION=latest`
+- `GATEWAY_PORT=11945`
+- `AP_BACKEND_MODE=container`
+- `TERM_BACKEND_MODE=host`
+- `PAN_BACKEND_MODE=host`
 
-- `TERM_BACKEND_MODE=host`（默认）：
-  - `/appterm` -> `host.docker.internal:11947`
-  - `/term` -> `host.docker.internal:11947`
-- `TERM_BACKEND_MODE=container`：
-  - `/appterm` -> `term-webclient-frontend:80`
-  - `/term` -> `term-webclient-frontend:80`
-- `/appterm` 当前仍经 term frontend 反向代理，不是直接命中 term backend
-- 修改 `.env` 后执行 `docker compose up -d` 使配置生效
+模式约束：
 
-### `/pan`、`/apppan` 上游切换
+- `AP_BACKEND_MODE` 仅接受 `container` 或 `host`
+- `TERM_BACKEND_MODE` 仅接受 `host` 或 `container`
+- `PAN_BACKEND_MODE` 仅接受 `host` 或 `container`
 
-- `PAN_BACKEND_MODE=host`（默认）：
-  - `/pan`、`/pan/api/`、`/pan/assets/` -> `host.docker.internal:11946`
-  - `/apppan`、`/apppan/api/`、`/apppan/assets/` -> `host.docker.internal:11946`
-- `PAN_BACKEND_MODE=container`：
-  - `/pan`、`/pan/api/`、`/pan/assets/` -> `pan-webclient:8080`
-  - `/apppan`、`/apppan/api/`、`/apppan/assets/` -> `pan-webclient:8080`
-- `pan-webclient` container 模式要求服务容器加入 `zenmind-network`，并可由 gateway 解析为 `pan-webclient`
-- 修改 `.env` 后执行 `docker compose up -d` 使配置生效
-
-### 端口矩阵（宿主机）
-
-- `11945`：gateway（统一入口）
-- `11952`：zenmind-app-server backend
-- `11950`：zenmind-app-server frontend
-- `11949`：agent-platform-runner
-- `11953`：zenmind-voice-server
-- `11969`：mcp-server-mock
-- `11967`：mcp-server-email
-- `11963`：mcp-server-bash
-- `11947`：term-webclient frontend（网关 `/term`、`/appterm` 转发目标）
-- `11937`：term-webclient backend（由 term-webclient 自身使用）
-- `11946`：pan-webclient backend（网关 `/pan`、`/apppan` 转发目标）
-- `11955`：MA 宿主机服务（网关 `/ma/*` 转发目标）
-
-### 网关路由矩阵
+## 4. 网关路由矩阵
 
 - `/admin/api`、`/api/auth`、`/api/app`、`/oauth2`、`/openid` -> `app-server-backend:8080`
 - `/admin` -> `app-server-frontend:80`
@@ -150,57 +88,91 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 - `/appterm` -> `TERM_BACKEND_MODE=host` 时 `host.docker.internal:11947`；`TERM_BACKEND_MODE=container` 时 `term-webclient-frontend:80`
 - `/term` -> `TERM_BACKEND_MODE=host` 时 `host.docker.internal:11947`；`TERM_BACKEND_MODE=container` 时 `term-webclient-frontend:80`
 - `/ma/*` -> `host.docker.internal:11955`，转发前去掉 `/ma` 前缀
-- `/ma/*` 的 `Location: /foo` 响应头会被改写为 `Location: /ma/foo`
-- `/pan` -> `PAN_BACKEND_MODE=host` 时 `host.docker.internal:11946`；`PAN_BACKEND_MODE=container` 时 `pan-webclient:8080`
-- `/pan/api/*`、`/pan/assets/*` -> rewrite 后转发到 pan 上游 `/api/*`、`/assets/*`
-- `/apppan` -> `PAN_BACKEND_MODE=host` 时 `host.docker.internal:11946`；`PAN_BACKEND_MODE=container` 时 `pan-webclient:8080`
-- `/apppan/api/*`、`/apppan/assets/*` -> rewrite 后转发到 pan 上游 `/api/*`、`/assets/*`
+- `/pan`、`/pan/api/*`、`/pan/assets/*` -> `PAN_BACKEND_MODE=host` 时 `host.docker.internal:11946`；`PAN_BACKEND_MODE=container` 时 `pan-webclient:8080`
+- `/apppan`、`/apppan/api/*`、`/apppan/assets/*` -> `PAN_BACKEND_MODE=host` 时 `host.docker.internal:11946`；`PAN_BACKEND_MODE=container` 时 `pan-webclient:8080`
 
-## 4. 部署
+## 5. 版本化发布与打包
 
-### 本地容器部署（推荐）
+本项目支持生成单架构离线 release bundle，bundle 只包含 `zenmind-gateway` 自身，不包含上游业务服务。
 
-```bash
-cd ~/Project/zenmind-gateway
-./start.sh --build
-```
+版本单一来源：
 
-### 重启网关（配置变更后）
+- `VERSION`
+
+正式打包入口：
 
 ```bash
-cd ~/Project/zenmind-gateway
-docker compose down
-docker compose up -d
+make release
 ```
 
-## 5. 运维
+常见用法：
 
-### 查看网关日志
+```bash
+make release VERSION=v1.0.0 ARCH=amd64
+make release VERSION=v1.0.0 ARCH=arm64
+```
+
+产物固定输出到：
+
+- `dist/release/zenmind-gateway-vX.Y.Z-linux-amd64.tar.gz`
+- `dist/release/zenmind-gateway-vX.Y.Z-linux-arm64.tar.gz`
+
+bundle 解压后的核心文件：
+
+- `.env.example`
+- `compose.release.yml`
+- `start.sh`
+- `stop.sh`
+- `README.txt`
+- `images/zenmind-gateway.tar`
+
+### release bundle 部署步骤
+
+```bash
+tar -xzf zenmind-gateway-v1.0.0-linux-amd64.tar.gz
+cd zenmind-gateway
+cp .env.example .env
+./start.sh
+```
+
+release `start.sh` 会自动：
+
+- 校验 `.env`
+- 按需加载 `images/zenmind-gateway.tar`
+- 确保 `zenmind-network` 存在
+- 用 `compose.release.yml` 启动容器
+
+### 升级与回滚
+
+- 升级：解压新版本 bundle，复用旧目录的 `.env`，执行新目录下的 `./start.sh`
+- 回滚：停止当前版本后，切回上一版 bundle 目录执行上一版 `./start.sh`
+
+详细说明见 [docs/versioned-release-bundle.md](/Users/linlay/Project/zenmind/zenmind-gateway/docs/versioned-release-bundle.md)。
+
+## 6. 运维
+
+查看日志：
 
 ```bash
 cd ~/Project/zenmind-gateway
 docker compose logs -f gateway
 ```
 
-### 常见排查
+常见排查：
 
 - `502 Bad Gateway`
-  - 检查目标服务容器是否启动
-  - 检查目标容器是否接入 `zenmind-network`
-  - 检查网关中服务别名是否与 compose 别名一致
-  - 若访问 `/api/voice/*`，检查 `voice-server` 是否已加入 `zenmind-network`
-  - 若 `PAN_BACKEND_MODE=host`，检查 pan-webclient 是否已监听 `127.0.0.1:11946`
-  - 若访问 `/ma/*`，检查宿主机服务是否已监听 `127.0.0.1:11955`
-- 端口占用
-  - `lsof -nP -iTCP:11945 -sTCP:LISTEN`
-- 规则未生效
-  - 执行 `docker compose down && docker compose up -d` 重新加载 `nginx.conf`
+- 检查目标服务容器是否启动
+- 检查目标容器是否接入 `zenmind-network`
+- 检查目标服务别名是否与网关配置一致
+- 若访问 `/api/voice/*`，检查 `voice-server` 是否可在 `zenmind-network` 中解析
+- 若 `PAN_BACKEND_MODE=host`，检查 pan-webclient 是否已监听 `127.0.0.1:11946`
+- 若访问 `/ma/*`，检查宿主机服务是否已监听 `127.0.0.1:11955`
 
-### 快速自检命令
+快速自检命令：
 
 ```bash
 docker network inspect zenmind-network
-docker ps --format 'table {{.Names}}\t{{.Ports}}'
+docker compose config
 curl -i http://127.0.0.1:11945/healthz
 curl -i http://127.0.0.1:11945/ma/
 ```
