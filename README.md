@@ -54,7 +54,7 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 配置文件：
 
 - 环境变量模板：`.env.example`
-- 开发态编排：`docker-compose.yml`
+- 开发态编排：`compose.yml`
 - 路由规则：`nginx.conf`
 - 模式片段：`nginx-backends/`
 

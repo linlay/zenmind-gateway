@@ -24,7 +24,7 @@
 
 ## 4. 目录结构
 
-- `docker-compose.yml`：网关容器定义与网络接入
+- `compose.yml`：网关容器定义与网络接入
 - `nginx.conf`：路由与转发规则（系统行为核心）
 - `nginx-backends/`：`/api/ap/`、`/appterm`、`/term`、`/pan`、`/apppan` 上游模式片段（container/host）
 - `.env.example`：网关环境变量契约（`GATEWAY_PORT`、`AP_BACKEND_MODE`、`TERM_BACKEND_MODE`、`PAN_BACKEND_MODE`）
