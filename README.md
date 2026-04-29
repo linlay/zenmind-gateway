@@ -80,7 +80,8 @@ curl -i -X POST http://127.0.0.1:11945/api/mcp/mock -H 'Content-Type: applicatio
 
 - `/admin/api`、`/api/auth`、`/api/app`、`/oauth2`、`/openid` -> `app-server-backend:8080`
 - `/admin` -> `app-server-frontend:80`
-- `/api/ap/*` -> `AP_BACKEND_MODE=container` 时转发到 `agent-platform-runner:8080/api/*`；`AP_BACKEND_MODE=host` 时转发到 `host.docker.internal:11949/api/*`
+- `/ap/api/*` -> `AP_BACKEND_MODE=container` 时转发到 `agent-platform:8080/api/*`；`AP_BACKEND_MODE=host` 时转发到 `host.docker.internal:11949/api/*`
+- `/ap/ws` -> `AP_BACKEND_MODE=container` 时转发到 `agent-platform:8080/ws`；`AP_BACKEND_MODE=host` 时转发到 `host.docker.internal:11949/ws`
 - `/api/voice/*` -> `voice-server:11953`
 - `/api/mcp/mock` -> `mcp-server-mock:8080/mcp`
 - `/api/mcp/email` -> `mcp-server-email:8080/mcp`

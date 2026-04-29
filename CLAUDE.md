@@ -26,7 +26,7 @@
 
 - `compose.yml`：网关容器定义与网络接入
 - `nginx.conf`：路由与转发规则（系统行为核心）
-- `nginx-backends/`：`/api/ap/`、`/appterm`、`/term`、`/pan`、`/apppan` 上游模式片段（container/host）
+- `nginx-backends/`：`/ap/api/`、`/appterm`、`/term`、`/pan`、`/apppan` 上游模式片段（container/host）
 - `.env.example`：网关环境变量契约（`GATEWAY_PORT`、`AP_BACKEND_MODE`、`TERM_BACKEND_MODE`、`PAN_BACKEND_MODE`）
 - `README.md`：操作手册（启动、部署、运维）
 - `CLAUDE.md`：系统事实文档（本文件）
@@ -35,15 +35,16 @@
 
 本项目核心数据是“路由映射表”：
 
-- `path`: 对外访问路径（如 `/api/ap/`）
-- `upstream`: 上游服务地址（如 `http://agent-platform-runner:8080`）
+- `path`: 对外访问路径（如 `/ap/api/`）
+- `upstream`: 上游服务地址（如 `http://agent-platform:8080`）
 - `mode`: `docker-network` 或 `host-forward`
 
 当前关键映射：
 
 - `/admin/api`、`/api/auth`、`/api/app`、`/oauth2`、`/openid` -> `app-server-backend:8080`
 - `/admin` -> `app-server-frontend:80`
-- `/api/ap/` -> `AP_BACKEND_MODE=container` 时 `agent-platform-runner:8080`；`AP_BACKEND_MODE=host` 时 `host.docker.internal:11949`
+- `/ap/api/` -> `AP_BACKEND_MODE=container` 时 `agent-platform:8080`；`AP_BACKEND_MODE=host` 时 `host.docker.internal:11949`
+- `/ap/ws` -> `AP_BACKEND_MODE=container` 时 `agent-platform:8080/ws`；`AP_BACKEND_MODE=host` 时 `host.docker.internal:11949/ws`
 - `/api/mcp/mock` -> `mcp-server-mock:8080/mcp`
 - `/api/mcp/email` -> `mcp-server-email:8080/mcp`
 - `/api/mcp/bash` -> `mcp-server-bash:8080/mcp`
@@ -59,7 +60,8 @@
 
 - `GET /healthz`：网关健康检查
 - `GET|POST /admin/*`：认证前后端入口
-- `GET|POST /api/ap/*`：agent-platform 接口入口
+- `GET|POST /ap/api/*`：agent-platform 接口入口
+- `GET /ap/ws`：agent-platform WebSocket 入口
 - `POST /api/mcp/mock`
 - `POST /api/mcp/email`
 - `POST /api/mcp/bash`
@@ -98,7 +100,7 @@
 
 ## 9. 已知约束与注意事项
 
-- 当 `AP_BACKEND_MODE=container` 且上游容器未接入 `zenmind-network` 时，`/api/ap/` 将返回 `502`。
+- 当 `AP_BACKEND_MODE=container` 且上游容器未接入 `zenmind-network` 时，`/ap/api/` 将返回 `502`。
 - 当 `TERM_BACKEND_MODE=container` 且 term-webclient 容器别名不可达时，`/appterm` 或 `/term` 将返回 `502`。
 - 当宿主机 `11955` 未监听或 `host.docker.internal:11955` 不可达时，`/ma/*` 将返回 `502`。
 - 当 `PAN_BACKEND_MODE=container` 且 pan-webclient 容器别名不可达时，`/pan` 或 `/apppan` 将返回 `502`。
